@@ -13,6 +13,7 @@ struct HariIniView: View {
     @Environment(\.dismiss) private var dismiss
     @Query(sort: \ReminderModel.createdAt, order: .reverse) private var reminders: [ReminderModel]
     @State private var showAdd = false
+    @State private var successKind: SuccessKind?
 
     private var today: [ReminderModel] {
         reminders.filter { r in
@@ -39,14 +40,14 @@ struct HariIniView: View {
 
                     HStack {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(doneCount == today.count && !today.isEmpty ? "Semua Tugas Selesai" : "Satu Tugas Selesai")
+                            Text(doneCount == today.count && !today.isEmpty ? "All Tasks Done" : "One Task Done")
                                 .font(.headline)
-                            Text("Selesaikan semua tugas untuk mendapatkan pets point")
+                            Text("Complete all tasks to earn pet points")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Text("\(doneCount) / \(today.count) Selesai")
+                        Text("\(doneCount) / \(today.count) Done")
                             .font(.caption.weight(.semibold))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 6)
@@ -55,15 +56,15 @@ struct HariIniView: View {
                     .padding(16)
                     .glassCard(cornerRadius: 20, tint: .white.opacity(0.55))
 
-                    Text("JADWAL HARIAN")
+                    Text("DAILY SCHEDULE")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
 
                     HStack {
-                        Text(Date.now, format: .dateTime.weekday(.wide).day().month().year())
+                        Text(Date.now, format: .dateTime.weekday(.wide).day().month().year().locale(Locale(identifier: "en")))
                             .font(.title3.bold())
                         Spacer()
-                        Label("Hari Ini", systemImage: "calendar")
+                        Label("Today", systemImage: "calendar")
                             .font(.caption)
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
@@ -76,12 +77,16 @@ struct HariIniView: View {
                 .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
 
                 if today.isEmpty {
-                    Text("Belum ada tugas hari ini. Tap + untuk menambah.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+                    EmptyStateView(
+                        title: "No tasks today",
+                        subtitle: "Add your first task and get it done today.",
+                        buttonTitle: "+ Add Task"
+                    ) {
+                        showAdd = true
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
                 } else {
                     ForEach(today, id: \.id) { TaskCardView(reminder: $0) }
                         .listRowSeparator(.hidden)
@@ -100,12 +105,16 @@ struct HariIniView: View {
                     .font(.system(size: 26, weight: .medium))
                     .foregroundStyle(.white)
                     .frame(width: 60, height: 60)
-                    .background(Color(red: 0.35, green: 0.45, blue: 0.50))
+                    .background(Color.honeyDeep)
                     .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 4)
+                    .shadow(color: Color.honeyDeep.opacity(0.45), radius: 8, y: 4)
             }
             .padding(.trailing, 20)
             .padding(.bottom, 20)
+
+            if successKind != nil {
+                SuccessModalView(kind: $successKind)
+            }
         }
         .background { HiveBackground() }
         .navigationBarBackButtonHidden(true)
@@ -116,6 +125,7 @@ struct HariIniView: View {
                 modelContext.insert(reminder)
                 try? modelContext.save()
                 NotificationManager.schedule(for: reminder)
+                successKind = .task
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)

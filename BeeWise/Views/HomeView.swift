@@ -27,6 +27,7 @@ struct HomeView: View {
 
     @State var showModal = false
     @State var selectedTab = "Home"
+    @State private var successKind: SuccessKind?
 
     var body: some View {
         NavigationStack {
@@ -47,20 +48,20 @@ struct HomeView: View {
                         NavigationLink {
                             HariIniView()
                         } label: {
-                            MenuCard(title: "Hari Ini", icon: "calendar.day",
+                            MenuCard(title: "Today", icon: "calendar.badge",
                                      color: Color(red: 0.93, green: 0.92, blue: 0.89))
                         }
                         NavigationLink {
                             TerjadwalView()
                         } label: {
-                            MenuCard(title: "Terjadwal", icon: "calendar",
+                            MenuCard(title: "Scheduled", icon: "calendar",
                                      color: Color(red: 0.88, green: 0.91, blue: 0.93))
                         }
                     }
                     .buttonStyle(.plain)
 
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("Daftar Saya")
+                        Text("My Lists")
                             .font(.system(size: 19, weight: .bold))
 
                         NavigationLink {
@@ -73,7 +74,7 @@ struct HomeView: View {
                                     .frame(width: 48, height: 48)
                                     .background(Color(red: 0.25, green: 0.25, blue: 0.27), in: Circle())
 
-                                Text("Catatan")
+                                Text("Notes")
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundColor(.primary)
 
@@ -92,10 +93,10 @@ struct HomeView: View {
 
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
-                            Text("Progres Hari Ini")
+                            Text("Today's Progress")
                                 .font(.subheadline.weight(.bold))
                             Spacer()
-                            Text("\(todayDone)/\(todayTasks.count) selesai")
+                            Text("\(todayDone)/\(todayTasks.count) done")
                                 .font(.caption.weight(.semibold))
                                 .foregroundColor(.secondary)
                         }
@@ -103,9 +104,7 @@ struct HomeView: View {
                             .tint(.orange)
                     }
                     .padding(16)
-                    .background(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 20))
-                    .shadow(color: .black.opacity(0.08), radius: 6, y: 3)
+                    .glassCard(cornerRadius: 20, tint: .white.opacity(0.6))
 
 //                    VStack(spacing: 8) {
 //                        VStack(spacing: 6) {
@@ -128,6 +127,10 @@ struct HomeView: View {
                 .padding(.bottom, 12)
                 }
                 }
+
+                if successKind != nil {
+                    SuccessModalView(kind: $successKind)
+                }
             }
             .safeAreaInset(edge: .bottom) {
                 FloatingToolbar(selectedTab: $selectedTab) {
@@ -143,6 +146,7 @@ struct HomeView: View {
                     modelContext.insert(reminder)
                     try? modelContext.save()
                     NotificationManager.schedule(for: reminder)
+                    successKind = .task
                 }
                 .presentationDetents([.large])
                 .presentationDragIndicator(.visible)

@@ -36,7 +36,7 @@ struct NotesView: View {
                         
                         Spacer()
                         
-                        Text("Catatan")
+                        Text("Notes")
                             .font(.title2.bold())
                         
                         Spacer()
@@ -54,30 +54,39 @@ struct NotesView: View {
             }
             .overlay {
                 if notes.isEmpty {
-                    Text("Tidak ada catatan")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundColor(.secondary)
+                    EmptyStateView(
+                        title: "No notes yet",
+                        subtitle: "Write your first idea and keep it here.",
+                        buttonTitle: "+ New Note"
+                    ) {
+                        createNote()
+                    }
                 }
             }
             .overlay(alignment: .bottomTrailing) {
                 Button {
-                    let note = NoteModel()
-                    modelContext.insert(note)
-                    try? modelContext.save()
-                    newNote = note
+                    createNote()
                 } label: {
                     Image(systemName: "plus")
                         .font(.system(size: 30, weight: .medium))
                         .foregroundColor(.white)
                         .frame(width: 64, height: 64)
-                        .background(Color.slate, in: Circle())
+                        .background(Color.honeyDeep, in: Circle())
+                        .shadow(color: Color.honeyDeep.opacity(0.45), radius: 8, y: 4)
                 }
                 .padding(28)
             }
-            .navigationDestination(item: $newNote) { NoteDetailView(note: $0) }
+            .navigationDestination(item: $newNote) { NoteDetailView(note: $0, isNew: true) }
             .navigationBarTitleDisplayMode(.inline)
             .navigationBarBackButtonHidden(true)
         }
+    }
+
+    private func createNote() {
+        let note = NoteModel()
+        modelContext.insert(note)
+        try? modelContext.save()
+        newNote = note
     }
     
     struct NoteRow: View {
@@ -109,7 +118,7 @@ struct NotesView: View {
                     NoteDetailView(note: note)
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(note.title.isEmpty ? "Tanpa judul" : note.title)
+                        Text(note.title.isEmpty ? "Untitled" : note.title)
                             .font(.footnote.weight(.semibold))
                             .strikethrough(note.isDone)
                             .multilineTextAlignment(.leading)
@@ -131,7 +140,7 @@ struct NotesView: View {
                 Button(role: .destructive) {
                     modelContext.delete(note)
                 } label: {
-                    Label("Hapus", systemImage: "trash")
+                    Label("Delete", systemImage: "trash")
                 }
             }
         }

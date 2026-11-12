@@ -31,8 +31,8 @@ enum NotificationManager {
 
     private static func makeContent(title: String) -> UNMutableNotificationContent {
         let c = UNMutableNotificationContent()
-        c.title = "Waktunya tugas!"
-        c.body = title.isEmpty ? "Ada tugas yang sudah waktunya dikerjakan." : title
+        c.title = "Task time!"
+        c.body = title.isEmpty ? "You have a task due now." : title
         c.sound = .default
         return c
     }

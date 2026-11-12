@@ -26,7 +26,7 @@ struct ShareModalView: View {
     }
 
     private var shareText: String {
-        "Aku mengumpulkan \(points) poin di BeeWise! \(shareLink)"
+        "I collected \(points) points in BeeWise! \(shareLink)"
     }
 
     var body: some View {
@@ -69,7 +69,7 @@ struct ShareModalView: View {
                     }
                 }
             }
-            .navigationTitle("Bagikan Pencapaianmu")
+            .navigationTitle("Share Your Achievement")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -121,14 +121,14 @@ struct ShareCard: View {
                     }
                 }
 
-            Text("Point Terkumpul")
+            Text("Points Collected")
                 .font(.subheadline)
                 .fontWeight(.bold)
 
             if streak > 0 {
                 HStack(spacing: 6) {
                     FlameIcon(size: 16)
-                    Text("Streak \(streak) hari")
+                    Text("\(streak)-day streak")
                         .font(.subheadline)
                         .fontWeight(.bold)
                 }
@@ -138,7 +138,7 @@ struct ShareCard: View {
                 .clipShape(Capsule())
             }
 
-            Text("Selamat, Kamu sangat\nProduktif Hari Ini")
+            Text("Congrats, You're So\nProductive Today")
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .padding(.top, 20)

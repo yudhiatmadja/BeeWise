@@ -74,8 +74,8 @@ struct FloatingToolbar: View {
                             .font(.system(size: 30, weight: .medium))
                             .foregroundColor(.white)
                             .frame(width: 64, height: 64)
-                            .background(Color(red: 0.32, green: 0.43, blue: 0.48), in: Circle())
-                            .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                            .background(Color.honeyDeep, in: Circle())
+                            .shadow(color: Color.honeyDeep.opacity(0.45), radius: 8, y: 4)
                     }
                 }
                 .padding(.horizontal, 28)

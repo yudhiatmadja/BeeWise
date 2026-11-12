@@ -14,8 +14,6 @@ extension Color {
     static let honeyDeep = Color(red: 0.93, green: 0.62, blue: 0.14)
 }
 
-/// Background tematik sarang lebah: gradien langit pagi -> krim -> madu,
-/// plus awan dan aset honeycomb dari katalog. Dipakai semua screen.
 struct HiveBackground: View {
     var body: some View {
         LinearGradient(
@@ -59,8 +57,6 @@ struct HiveBackground: View {
     }
 }
 
-/// Glass theme: material kaca + border highlight + shadow lembut.
-/// Dipakai untuk card dan komponen animasi biar menyatu dengan background.
 struct GlassCard: ViewModifier {
     var cornerRadius: CGFloat = 22
     var tint: Color? = nil

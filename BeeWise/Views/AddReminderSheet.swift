@@ -27,13 +27,13 @@ struct AddReminderSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
 
-                Text("Apa saja yang akan kamu kerjakan?")
+                Text("What will you work on?")
                     .font(.headline)
                     .padding(.top, 24)
 
                 noteCard
 
-                toggleRow(title: "Tanggal", icon: "calendar", isOn: $useDate)
+                toggleRow(title: "Date", icon: "calendar", isOn: $useDate)
 
                 if useDate {
                     DatePicker("",
@@ -46,7 +46,7 @@ struct AddReminderSheet: View {
                         .background(Color(white: 0.98), in: RoundedRectangle(cornerRadius: 16))
                         .transition(.opacity.combined(with: .move(edge: .top)))
 
-                    toggleRow(title: "Waktu", icon: "clock", isOn: $useTime)
+                    toggleRow(title: "Time", icon: "clock", isOn: $useTime)
                         .transition(.opacity.combined(with: .move(edge: .top)))
 
                     if useTime {
@@ -56,7 +56,7 @@ struct AddReminderSheet: View {
                             .frame(maxWidth: .infinity)
                             .transition(.opacity.combined(with: .move(edge: .top)))
                         if isPast {
-                                Text("Waktu sudah lewat, pilih waktu yang akan datang.")
+                                Text("That time has passed, pick a future time.")
                                     .font(.caption)
                                     .foregroundColor(.red)
                             }
@@ -64,10 +64,10 @@ struct AddReminderSheet: View {
                 }
 
                 VStack(spacing: 14) {
-                    actionButton("Konfirmasi", color: .blue.opacity(0.85), disabled: trimmed.isEmpty || isPast) {
+                    actionButton("Confirm", color: .blue.opacity(0.85), disabled: trimmed.isEmpty || isPast) {
                         save()
                     }
-                    actionButton("Hapus", color: .red.opacity(0.85), disabled: false) {
+                    actionButton("Cancel", color: .red.opacity(0.85), disabled: false) {
                         dismiss()
                     }
                 }
@@ -91,7 +91,7 @@ struct AddReminderSheet: View {
         ZStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Label("CATATAN KEGIATAN", systemImage: "doc")
+                    Label("ACTIVITY NOTE", systemImage: "doc")
                         .font(.caption.weight(.semibold))
                     Spacer()
                     Text("\(text.count)/\(maxChars)")
@@ -112,7 +112,7 @@ struct AddReminderSheet: View {
                             }
                         }
                     if text.isEmpty {
-                        Text("Tulis rencana kegiatanmu disini...")
+                        Text("Write your plan here...")
                             .font(.subheadline.weight(.medium))
                             .foregroundColor(.gray.opacity(0.7))
                             .allowsHitTesting(false)

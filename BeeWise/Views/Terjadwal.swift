@@ -9,6 +9,8 @@ import SwiftUI
 import SwiftData
 import EventKit
 
+private let enLocale = Locale(identifier: "en")
+
 struct AppleEventCardView: View {
     let event: EKEvent
 
@@ -32,7 +34,7 @@ struct AppleEventCardView: View {
                 }
             }
             Spacer()
-            Label(event.calendar.title.isEmpty ? "Kalender" : event.calendar.title,
+            Label(event.calendar.title.isEmpty ? "Calendar" : event.calendar.title,
                   systemImage: "calendar")
                 .font(.caption2.bold())
                 .foregroundStyle(.blue)
@@ -61,6 +63,7 @@ struct TaskCardView: View {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) {
                     reminder.isDone.toggle()
                     if reminder.isDone {
+                        SoundManager.play(.check)
                         NotificationManager.cancel(for: reminder)
                     } else {
                         NotificationManager.schedule(for: reminder)
@@ -84,7 +87,7 @@ struct TaskCardView: View {
             .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(reminder.title.isEmpty ? "Tanpa judul" : reminder.title)
+                Text(reminder.title.isEmpty ? "Untitled" : reminder.title)
                     .font(.system(size: 15, weight: .semibold))
                     .foregroundStyle(reminder.isDone ? .gray : .black.opacity(0.85))
                     .overlay(alignment: .leading) {
@@ -103,7 +106,7 @@ struct TaskCardView: View {
                     HStack(spacing: 4) {
                         Image(systemName: "clock")
                             .font(.caption2)
-                        Text(date, format: .dateTime.day().month().hour().minute())
+                        Text(date, format: .dateTime.day().month().hour().minute().locale(enLocale))
                             .font(.caption)
                     }
                     .foregroundStyle(.gray)
@@ -116,11 +119,12 @@ struct TaskCardView: View {
         .padding(.vertical, 14)
         .glassCard(cornerRadius: 18, tint: Color(red: 0.88, green: 0.91, blue: 0.92).opacity(0.7))
         .swipeActions(edge: .leading, allowsFullSwipe: false) {
-            Button(role: .destructive) {
+            Button {
                 showDeleteConfirm = true
             } label: {
-                Label("Hapus", systemImage: "trash")
+                Label("Delete", systemImage: "trash")
             }
+            .tint(.red)
         }
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             Button {
@@ -130,12 +134,10 @@ struct TaskCardView: View {
             }
             .tint(.orange)
         }
-        .alert("Hapus tugas?", isPresented: $showDeleteConfirm) {
-            Button("Batal", role: .cancel) { }
-            Button("Hapus", role: .destructive) {
+        .alert("Delete task?", isPresented: $showDeleteConfirm) {
+            Button("Cancel", role: .cancel) { }
+            Button("Delete", role: .destructive) {
                 NotificationManager.cancel(for: reminder)
-                // Hapus async: biarkan swipe-actions tertutup dulu,
-                // kalau tidak List crash "invalid number of items".
                 let ctx = modelContext
                 let obj = reminder
                 DispatchQueue.main.async {
@@ -143,7 +145,7 @@ struct TaskCardView: View {
                 }
             }
         } message: {
-            Text("Tugas \"\(reminder.title)\" akan dihapus permanen.")
+            Text("Task \"\(reminder.title)\" will be permanently deleted.")
         }
         .sheet(isPresented: $showEdit) {
             EditReminderView(reminder: reminder)
@@ -183,25 +185,25 @@ struct EditReminderView: View {
     var body: some View {
         NavigationStack {
             Form {
-                TextField("Judul tugas", text: $title, axis: .vertical)
+                TextField("Task title", text: $title, axis: .vertical)
 
-                Toggle("Tanggal", isOn: $hasDate)
+                Toggle("Date", isOn: $hasDate)
                 if hasDate {
-                    DatePicker("Tanggal", selection: $date, displayedComponents: .date)
-                    Toggle("Waktu", isOn: $hasTime)
+                    DatePicker("Date", selection: $date, displayedComponents: .date)
+                    Toggle("Time", isOn: $hasTime)
                     if hasTime {
-                        DatePicker("Waktu", selection: $time, displayedComponents: .hourAndMinute)
+                        DatePicker("Time", selection: $time, displayedComponents: .hourAndMinute)
                     }
                 }
             }
-            .navigationTitle("Edit Tugas")
+            .navigationTitle("Edit Task")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Batal") { dismiss() }
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Simpan") {
+                    Button("Save") {
                         reminder.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
                         reminder.date = hasDate ? ReminderModel.combine(date: date, time: hasTime ? time : nil) : nil
                         reminder.hasTime = hasDate && hasTime
@@ -230,6 +232,7 @@ struct TerjadwalView: View {
     @State private var eventManager = EventStoreManager()
     @State private var selectedDay: Date?
     @Namespace private var dayPill
+    @State private var successKind: SuccessKind?
 
     private var calendar: Calendar {
         var cal = Calendar.current
@@ -251,11 +254,11 @@ struct TerjadwalView: View {
         // minggu nyebrang bulan (misal 30 Nov – 6 Des): tulis dua-duanya
         if !calendar.isDate(first, equalTo: last, toGranularity: .month) {
             if calendar.isDate(first, equalTo: last, toGranularity: .year) {
-                return "\(first.formatted(.dateTime.month(.wide))) – \(last.formatted(.dateTime.month(.wide).year()))"
+                return "\(first.formatted(.dateTime.month(.wide).locale(enLocale))) – \(last.formatted(.dateTime.month(.wide).year().locale(enLocale)))"
             }
-            return "\(first.formatted(.dateTime.month(.wide).year())) – \(last.formatted(.dateTime.month(.wide).year()))"
+            return "\(first.formatted(.dateTime.month(.wide).year().locale(enLocale))) – \(last.formatted(.dateTime.month(.wide).year().locale(enLocale)))"
         }
-        return first.formatted(.dateTime.month(.wide).year())
+        return first.formatted(.dateTime.month(.wide).year().locale(enLocale))
     }
 
     private func appleEvents(on day: Date) -> [EKEvent] {
@@ -275,11 +278,19 @@ struct TerjadwalView: View {
 
     private var overdue: [ReminderModel] {
         let startToday = calendar.startOfDay(for: .now)
+        // hanya overdue dalam minggu yg sedang tampil, bukan seluruh riwayat
+        let weekStart = calendar.startOfDay(for: visibleWeek.first ?? .now)
         let list = reminders.filter { r in
             guard let d = r.date else { return false }
-            return d < startToday
+            return d < startToday && d >= weekStart
         }
         return list.sorted { !$0.isDone && $1.isDone }
+    }
+
+    /// ID item yg sudah tampil di section Overdue — tidak boleh tampil
+    /// juga di section hari (ID dobel dalam 1 List = crash invalid-update).
+    private var overdueIDs: Set<UUID> {
+        Set(overdue.map(\.id))
     }
 
     private func visibleTasks(on day: Date) -> [ReminderModel] {
@@ -292,7 +303,6 @@ struct TerjadwalView: View {
         return list.sorted { !$0.isDone && $1.isDone }
     }
 
-    /// Hari yang ditampilkan di list: 1 hari kalau ada filter, seminggu kalau tidak.
     private var daysToShow: [Date] {
         if let day = selectedDay { return [day] }
         return visibleWeek
@@ -324,7 +334,7 @@ struct TerjadwalView: View {
                     }
                     .buttonStyle(.plain)
 
-                    Text("Terjadwal")
+                    Text("Scheduled")
                         .font(.system(size: 32, weight: .bold))
 
                     Text(weekTitle)
@@ -338,8 +348,6 @@ struct TerjadwalView: View {
                                 ForEach(weekDays(offset: offset), id: \.self) { day in
                                     let isToday = calendar.isDateInToday(day)
                                     let selected = isSelected(day)
-                                    // satu pil kuning: di hari terpilih kalau filter aktif,
-                                    // kalau tidak ya di hari ini. Meluncur pakai matchedGeometryEffect.
                                     let showPill = selected || (isToday && selectedDay == nil)
                                     let highlighted = showPill
                                     let hasLocal = !tasks(on: day).isEmpty
@@ -351,7 +359,7 @@ struct TerjadwalView: View {
                                         }
                                     } label: {
                                         VStack(spacing: 4) {
-                                            Text(day, format: .dateTime.weekday(.narrow))
+                                            Text(day, format: .dateTime.weekday(.narrow).locale(enLocale))
                                                 .font(.caption2)
                                                 .foregroundStyle(highlighted ? .white : .secondary)
                                             Text(day, format: .dateTime.day())
@@ -370,7 +378,6 @@ struct TerjadwalView: View {
                                                     .frame(width: 46, height: 56)
                                                     .matchedGeometryEffect(id: "dayPill", in: dayPill)
                                             } else if isToday {
-                                                // hari ini tanpa filter: hanya border kuning, tanpa fill
                                                 RoundedRectangle(cornerRadius: 14)
                                                     .stroke(Color.honey, lineWidth: 2)
                                                     .frame(width: 46, height: 56)
@@ -386,19 +393,13 @@ struct TerjadwalView: View {
                     .tabViewStyle(.page(indexDisplayMode: .never))
                     .frame(height: 76)
                     .glassCard(cornerRadius: 18, tint: .white.opacity(0.5))
-
-                    if reminders.isEmpty {
-                        Text("Belum ada jadwal. Tap + untuk menambah.")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
                 }
                 .listRowSeparator(.hidden)
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
 
                 if !overdue.isEmpty {
-                    Text("Lewat Jatuh Tempo")
+                    Text("Overdue")
                         .font(.headline)
                         .foregroundStyle(.gray)
                         .listRowSeparator(.hidden)
@@ -409,10 +410,11 @@ struct TerjadwalView: View {
                 }
 
                 ForEach(daysToShow, id: \.self) { day in
-                    let local = visibleTasks(on: day)
+                    // local dikurangi yg sudah ada di Overdue biar tidak dobel ID
+                    let local = visibleTasks(on: day).filter { !overdueIDs.contains($0.id) }
                     let apple = appleEvents(on: day)
                     if !local.isEmpty || !apple.isEmpty {
-                        Text(day, format: .dateTime.weekday(.wide).day().month(.wide))
+                        Text(day, format: .dateTime.weekday(.wide).day().month(.wide).locale(enLocale))
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.gray)
                             .listRowSeparator(.hidden)
@@ -426,12 +428,18 @@ struct TerjadwalView: View {
                 }
 
                 if overdue.isEmpty && daysToShow.allSatisfy({ visibleTasks(on: $0).isEmpty && appleEvents(on: $0).isEmpty }) {
-                    Text(selectedDay == nil ? "Tidak ada tugas minggu ini." : "Tidak ada tugas hari ini.")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
+                    EmptyStateView(
+                        title: selectedDay == nil ? "This week is empty" : "Today is empty",
+                        subtitle: selectedDay == nil
+                            ? "No plans this week yet. Add your first task."
+                            : "No tasks today. Add a task or pick another day.",
+                        buttonTitle: "+ Add Task"
+                    ) {
+                        showAdd = true
+                    }
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets(top: 6, leading: 20, bottom: 6, trailing: 20))
                 }
             }
             .listStyle(.plain)
@@ -445,12 +453,16 @@ struct TerjadwalView: View {
                     .font(.system(size: 26, weight: .medium))
                     .foregroundStyle(.white)
                     .frame(width: 60, height: 60)
-                    .background(Color(red: 0.35, green: 0.45, blue: 0.50))
+                    .background(Color.honeyDeep)
                     .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.2), radius: 6, x: 0, y: 4)
+                    .shadow(color: Color.honeyDeep.opacity(0.45), radius: 8, y: 4)
             }
             .padding(.trailing, 20)
             .padding(.bottom, 20)
+
+            if successKind != nil {
+                SuccessModalView(kind: $successKind)
+            }
         }
         .background { HiveBackground() }
         .navigationBarBackButtonHidden(true)
@@ -470,6 +482,7 @@ struct TerjadwalView: View {
                 modelContext.insert(reminder)
                 try? modelContext.save()
                 NotificationManager.schedule(for: reminder)
+                successKind = .task
             }
             .presentationDetents([.large])
             .presentationDragIndicator(.visible)

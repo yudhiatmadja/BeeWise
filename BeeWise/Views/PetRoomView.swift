@@ -14,6 +14,7 @@ struct PetRoomView: View {
     @AppStorage("petName") private var petName: String = "Pet Name"
     @AppStorage("streakCount") private var streakCount: Int = 0
     @AppStorage("lastStreakClaim") private var lastStreakClaim: String = ""
+    @AppStorage("lastPenaltyClaim") private var lastPenaltyClaim: String = ""
     @AppStorage("evolutionPoints") private var evolutionPoints: Int = 0
 
     @State private var isEditingName: Bool = false
@@ -49,7 +50,7 @@ struct PetRoomView: View {
         VStack(spacing: 24) {
             HStack {
                 if isEditingName {
-                    TextField("Nama Pet", text: $petName, onCommit: {
+                    TextField("Pet Name", text: $petName, onCommit: {
                         isEditingName = false
                     })
                     .font(.title2)
@@ -77,6 +78,17 @@ struct PetRoomView: View {
                     .padding(.vertical, 6)
                     .background(Color.orange.opacity(0.2))
                     .cornerRadius(12)
+
+                // penanda mode testing: hilang sendiri pas isProd = true
+                if !BuildConfig.isProd {
+                    Text("DEV ×\(BuildConfig.perfectDayPoints)")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.purple)
+                        .cornerRadius(12)
+                }
             }
             .padding(.horizontal)
 
@@ -95,11 +107,11 @@ struct PetRoomView: View {
                             .resizable()
                             .scaledToFit()
                             .frame(width: 16, height: 16)
-                        Text("Nektar")
+                        Text("Nectar")
                             .font(.caption)
                             .fontWeight(.bold)
                         Spacer()
-                        Text(level >= 5 ? "MAX" : "\(progressInLevel) / \(maxPoints) poin")
+                        Text(level >= 5 ? "MAX" : "\(progressInLevel) / \(maxPoints) pts")
                             .font(.caption)
                             .fontWeight(.bold)
                     }
@@ -108,14 +120,14 @@ struct PetRoomView: View {
                         .tint(.orange)
                         .animation(.easeInOut, value: progressInLevel)
 
-                    Text("Hari ini: \(todayDone) / \(todayTotal) tugas selesai")
+                    Text("Today: \(todayDone) / \(todayTotal) tasks done")
                         .font(.caption2)
                         .foregroundColor(.gray)
 
                     HStack(spacing: 4) {
                         Text(level >= 5
-                             ? "Level maksimal tercapai!"
-                             : "Selesaikan \(maxPoints - progressInLevel) hari sempurna lagi untuk naik ke level \(level + 1)!")
+                             ? "Max level reached!"
+                             : "Complete \(maxPoints - progressInLevel) more perfect days to reach level \(level + 1)!")
                         if isPerfect {
                             Image(systemName: "party.popper.fill")
                         }
@@ -132,10 +144,10 @@ struct PetRoomView: View {
                 HStack(spacing: 12) {
                     FlameIcon(size: 40)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("Streak \(streakCount) hari!")
+                        Text("\(streakCount)-day streak!")
                             .font(.headline)
                         HStack(spacing: 4) {
-                            Text("Pertahankan besok juga")
+                            Text("Keep it up tomorrow")
                             Image(systemName: "hand.thumbsup.fill")
                                 .font(.caption)
                         }
@@ -153,6 +165,15 @@ struct PetRoomView: View {
             Spacer()
 
             HStack {
+                // tombol demo: hilang sendiri pas isProd = true
+                if !BuildConfig.isProd {
+                    Button("Test Trophy") { showTrophy = true }
+                        .font(.caption2.bold())
+                        .foregroundStyle(.purple)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(.ultraThinMaterial, in: Capsule())
+                }
                 Spacer()
                 Button(action: {
                     showShareModal = true
@@ -174,8 +195,10 @@ struct PetRoomView: View {
         }
         .navigationTitle("Pet Room")
         .navigationBarTitleDisplayMode(.inline)
-        .onAppear(perform: claimStreakIfNeeded)
-        .onAppear { lastSeenLevel = level }
+        .onAppear {
+            lastSeenLevel = level
+            claimStreakIfNeeded()
+        }
         .onChange(of: level) { old, new in
             guard let last = lastSeenLevel, new > last else {
                 lastSeenLevel = new
@@ -183,6 +206,12 @@ struct PetRoomView: View {
             }
             lastSeenLevel = new
             showTrophy = true
+        }
+        .onChange(of: showTrophy) { _, new in
+            if new { SoundManager.play(.fanfare) }
+        }
+        .onChange(of: isPerfect) { _, new in
+            if new { SoundManager.play(.shimmer) }
         }
         .onChange(of: todayDone) { _, _ in claimStreakIfNeeded() }
         .sheet(isPresented: $showShareModal) {
@@ -205,10 +234,10 @@ struct PetRoomView: View {
             VStack(spacing: 12) {
                 LottieView(filename: "trophy")
                     .frame(width: 200, height: 200)
-                Text("Naik ke Level \(level)!")
+                Text("Level \(level) reached!")
                     .font(.title2.bold())
                     .foregroundStyle(.white)
-                Button("Mantap!") { showTrophy = false }
+                Button("Awesome!") { showTrophy = false }
                     .buttonStyle(.borderedProminent)
             }
         }
@@ -216,6 +245,7 @@ struct PetRoomView: View {
     }
 
     private func claimStreakIfNeeded() {
+        applyPenaltyIfNeeded()
         guard isPerfect else { return }
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy-MM-dd"
@@ -224,7 +254,24 @@ struct PetRoomView: View {
         let yesterdayStr = fmt.string(from: Calendar.current.date(byAdding: .day, value: -1, to: .now) ?? .now)
         streakCount = (lastStreakClaim == yesterdayStr) ? streakCount + 1 : 1
         lastStreakClaim = todayStr
-        evolutionPoints += 1
+        evolutionPoints += BuildConfig.perfectDayPoints
+    }
+
+    private func applyPenaltyIfNeeded() {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "yyyy-MM-dd"
+        guard let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: .now) else { return }
+        let yesterdayStr = fmt.string(from: yesterday)
+        guard lastPenaltyClaim != yesterdayStr else { return }
+        lastPenaltyClaim = yesterdayStr
+        let tasks = reminders.filter { r in
+            guard let d = r.date else { return false }
+            return Calendar.current.isDate(d, inSameDayAs: yesterday)
+        }
+        guard !tasks.isEmpty else { return }
+        if tasks.contains(where: { !$0.isDone }) {
+            evolutionPoints = max(0, evolutionPoints - 1)
+        }
     }
 }
 

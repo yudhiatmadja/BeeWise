@@ -13,9 +13,15 @@ struct NoteDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     @Bindable var note: NoteModel
+    var isNew: Bool = false
 
     private enum Field { case title, body }
     @FocusState private var focus: Field?
+
+    @State private var draftTitle = ""
+    @State private var draftBody = ""
+    @State private var successKind: SuccessKind?
+    @State private var celebrated = false
 
     var body: some View {
         ZStack {
@@ -70,24 +76,38 @@ struct NoteDetailView: View {
                     .buttonStyle(.plain)
 
                     VStack(alignment: .leading, spacing: 6) {
-                        TextField("Judul", text: $note.title, axis: .vertical)
+                        TextField("Title", text: $draftTitle, axis: .vertical)
                             .font(.subheadline.weight(.semibold))
                             .focused($focus, equals: .title)
                             .onSubmit { focus = .body }
-                            .onChange(of: note.title) { _, new in
+                            .onChange(of: draftTitle) { _, new in
                                 if new.contains("\n") {
-                                    let cleaned = new.replacingOccurrences(of: "\n", with: "")
-                                    DispatchQueue.main.async {
-                                        note.title = cleaned
-                                        focus = .body
-                                    }
+                                    draftTitle = new.replacingOccurrences(of: "\n", with: "")
+                                    focus = .body
+                                } else {
+                                    note.title = new
                                 }
                             }
 
-                        TextField("Tambah Catatan", text: $note.body, axis: .vertical)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .focused($focus, equals: .body)
+                        ZStack(alignment: .topLeading) {
+                            TextEditor(text: $draftBody)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                                .focused($focus, equals: .body)
+                                .frame(minHeight: 120)
+                                .scrollContentBackground(.hidden)
+                                .onChange(of: draftBody) { _, new in
+                                    note.body = new
+                                }
+                            if draftBody.isEmpty {
+                                Text("Add Note")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary.opacity(0.6))
+                                    .allowsHitTesting(false)
+                                    .padding(.top, 8)
+                                    .padding(.leading, 5)
+                            }
+                        }
                     }
                 }
                 .padding(16)
@@ -107,20 +127,31 @@ struct NoteDetailView: View {
                     .font(.system(size: 30, weight: .medium))
                     .foregroundColor(.white)
                     .frame(width: 64, height: 64)
-                    .background(Color(red: 0x52 / 255, green: 0x6B / 255, blue: 0x77 / 255), in: Circle())
-                    .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+                    .background(Color.honeyDeep, in: Circle())
+                    .shadow(color: Color.honeyDeep.opacity(0.45), radius: 8, y: 4)
             }
             .padding(28)
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(true)
+        .overlay {
+            if successKind != nil {
+                SuccessModalView(kind: $successKind)
+            }
+        }
         .onAppear {
+            draftTitle = note.title
+            draftBody = note.body
             focus = note.title.isEmpty ? .title : .body
+            if isNew && !celebrated {
+                celebrated = true
+                successKind = .note
+            }
         }
         .onDisappear {
-            let t = note.title.trimmingCharacters(in: .whitespacesAndNewlines)
-            let b = note.body.trimmingCharacters(in: .whitespacesAndNewlines)
-            if t.isEmpty && b.isEmpty {
+            note.title = draftTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+            note.body = draftBody.trimmingCharacters(in: .whitespacesAndNewlines)
+            if note.title.isEmpty && note.body.isEmpty {
                 modelContext.delete(note)
             }
             try? modelContext.save()
@@ -131,7 +162,7 @@ struct NoteDetailView: View {
 
 #Preview {
     NavigationStack {
-        NoteDetailView(note: NoteModel(title: "Kuliah Matkul Basis Data"))
+        NoteDetailView(note: NoteModel(title: "Database Lecture"))
     }
     .modelContainer(for: [ReminderModel.self, NoteModel.self], inMemory: true)
 }
