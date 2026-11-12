@@ -19,7 +19,7 @@ enum SuccessKind {
         }
     }
 
-    var animation: String { "bee-success" }
+    var animation: String { "happy-bee" }
     var hasAnimation: Bool {
         Bundle.main.url(forResource: animation, withExtension: "json") != nil
     }
